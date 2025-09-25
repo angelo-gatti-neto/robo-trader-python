@@ -1,4 +1,4 @@
-# backtester_pro.py (VERSÃO FINAL CORRIGIDA E PROFISSIONAL)
+# backtester_pro.py (Versão Corrigida)
 
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
@@ -7,11 +7,10 @@ from datetime import datetime, timedelta
 import pandas as pd
 import config
 import connection
-import strategy as strat # Usaremos o strategy.py para pegar o timeframe
+import strategy as strat
 
-# Passo 1: Definir a Estratégia no formato que a biblioteca entende
+# Classe da Estratégia EmaCross (continua a mesma)
 class EmaCross(Strategy):
-    # Parâmetros da estratégia que lemos do config.py
     n1 = config.MEDIA_CURTA
     n2 = config.MEDIA_LONGA
     n_tendencia = 200
@@ -19,38 +18,26 @@ class EmaCross(Strategy):
     take_profit_points = config.RISK_POINTS_TAKE_PROFIT
 
     def init(self):
-        # Preparar os indicadores
         close = self.data.Close
-        # A biblioteca `backtesting.py` tem sua própria forma de calcular indicadores
-        # self.I() é a função para isso.
         self.ema1 = self.I(lambda x, n: pd.Series(x).ewm(span=n, adjust=False).mean(), close, self.n1)
         self.ema2 = self.I(lambda x, n: pd.Series(x).ewm(span=n, adjust=False).mean(), close, self.n2)
         self.ema_tendencia = self.I(lambda x, n: pd.Series(x).ewm(span=n, adjust=False).mean(), close, self.n_tendencia)
 
     def next(self):
-        # Esta função roda a cada candle
         price = self.data.Close[-1]
         
-        # Lógica de Compra: se a ema1 cruzar para cima da ema2
-        # A função 'crossover' da biblioteca é robusta para detectar cruzamentos
         if crossover(self.ema1, self.ema2) and price > self.ema_tendencia[-1]:
-            # Como point=1 para o mini-índice, o cálculo é direto
-            sl = price - self.stop_loss_points
-            tp = price + self.take_profit_points
-            self.buy(sl=sl, tp=tp, size=1) # size=1 significa 1 contrato
+            self.buy(sl=price - self.stop_loss_points, tp=price + self.take_profit_points, size=1)
 
-        # Lógica de Venda: se a ema2 cruzar para cima da ema1
         elif crossover(self.ema2, self.ema1) and price < self.ema_tendencia[-1]:
-            # Como point=1 para o mini-índice, o cálculo é direto
-            sl = price + self.stop_loss_points
-            tp = price - self.take_profit_points
-            self.sell(sl=sl, tp=tp, size=1) # size=1 significa 1 contrato
+            self.sell(sl=price + self.stop_loss_points, tp=price - self.take_profit_points, size=1)
 
 
 if __name__ == "__main__":
-    if connection.initialize_mt5():
+    # --- CORREÇÃO APLICADA AQUI ---
+    # Agora passamos as credenciais do config para a função de inicialização
+    if connection.initialize_mt5(config.MT5_LOGIN, config.MT5_PASSWORD, config.MT5_SERVER):
         
-        # Puxa os dados históricos
         end_date = datetime.now()
         start_date = end_date - timedelta(days=90)
         
@@ -59,7 +46,6 @@ if __name__ == "__main__":
         df['time'] = pd.to_datetime(df['time'], unit='s')
         df.set_index('time', inplace=True)
         
-        # Renomeia as colunas para o padrão da biblioteca
         df.rename(columns={
             'open': 'Open',
             'high': 'High',
@@ -68,8 +54,6 @@ if __name__ == "__main__":
             'tick_volume': 'Volume'
         }, inplace=True)
 
-        # Configura e executa o backtest
-        # Aumentamos o cash para um valor maior que o preço do ativo para resolver o aviso
         bt = Backtest(df, EmaCross, cash=200_000, commission=0)
         stats = bt.run()
         
@@ -77,7 +61,6 @@ if __name__ == "__main__":
         print(stats)
         print("-------------------------------------------\n")
 
-        # Plota um gráfico interativo com os resultados!
         bt.plot()
         
         connection.shutdown_mt5()

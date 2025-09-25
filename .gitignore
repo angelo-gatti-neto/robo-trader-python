@@ -7,3 +7,14 @@ config.py
 # Arquivos de cache do Python
 __pycache__/
 *.pyc
+
+# Pastas e arquivos gerados pelo PyInstaller
+dist/
+build/
+*.spec
+
+# Arquivos gerados pelo backtester
+*.html
+
+# Nossos scripts de teste de diagnóstico
+check_*.py
