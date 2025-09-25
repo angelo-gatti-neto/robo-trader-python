@@ -1,0 +1,9 @@
+# Arquivo de configuração com senhas
+config.py
+
+# Pasta do Ambiente Virtual
+.venv/
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
